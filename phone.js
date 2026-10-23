@@ -138,6 +138,7 @@ app.addEventListener('click', (e) => {
 });
 
 teammates = await loadTeammates();
+if (me) store.join(me).catch(() => {}); // re-register a remembered name, e.g. after a reset
 store.onGame((g) => {
   const changed = !game || g.award_index !== game.award_index || g.status !== game.status;
   game = g;
