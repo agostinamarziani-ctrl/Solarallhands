@@ -148,6 +148,7 @@ async function render() {
 async function go(index, status) {
   try {
     await store.setGame(index, status);
+    apply({ award_index: index, status }); // don't wait for the round trip to update the big screen
   } catch (e) {
     toast(`Couldn’t update the game: ${e.message}`);
   }
@@ -158,7 +159,7 @@ app.addEventListener('click', async (e) => {
   if (!action) return;
   if (action === 'reset') {
     if (!confirm('Reset the game? This deletes every vote and sends everyone back to the start.')) return;
-    try { await store.resetGame(); } catch (err) { toast(`Couldn’t reset: ${err.message}`); }
+    try { await store.resetGame(); game = null; apply({ award_index: -1, status: 'lobby' }); } catch (err) { toast(`Couldn’t reset: ${err.message}`); }
     return;
   }
   primary?.();
@@ -171,8 +172,10 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-store.onGame((g) => {
+function apply(g) {
   if (game && g.award_index === game.award_index && g.status === game.status) return;
   game = g;
   render();
-});
+}
+
+store.onGame(apply);

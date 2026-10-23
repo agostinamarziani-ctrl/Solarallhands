@@ -27,8 +27,8 @@ function supabaseStore() {
       c.channel('game')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'game' }, refresh)
         .subscribe();
-      // Safety net for flaky Wi-Fi: re-check every few seconds as well.
-      setInterval(refresh, 4000);
+      // Safety net for flaky Wi-Fi or a dropped realtime connection.
+      setInterval(refresh, 2000);
       refresh();
     },
     async setGame(award_index, status) {
