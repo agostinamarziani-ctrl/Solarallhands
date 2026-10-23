@@ -118,7 +118,66 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* Lobby */
 .lobby { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6vw; align-items: center; }
-.lobby h1 { font-size: clamp(64px, 9vw, 210px); line-height: 0.9; max-width: 9ch; }
+.lobby h1 {
+  font-size: clamp(64px, 9vw, 210px); line-height: 0.9; max-width: 9ch;
+  animation: flicker 5s infinite;
+}
+/* Candlelight: an uneven glow that never quite settles. */
+@keyframes flicker {
+  0%, 100% { text-shadow: 0 0 0.25em rgba(255, 138, 61, 0.35), 0 0 0.9em rgba(255, 138, 61, 0.12); }
+  8% { text-shadow: 0 0 0.18em rgba(255, 138, 61, 0.22), 0 0 0.6em rgba(255, 138, 61, 0.08); }
+  12% { text-shadow: 0 0 0.3em rgba(255, 150, 80, 0.45), 0 0 1em rgba(255, 138, 61, 0.16); }
+  40% { text-shadow: 0 0 0.24em rgba(255, 138, 61, 0.32), 0 0 0.85em rgba(255, 138, 61, 0.12); }
+  44% { text-shadow: 0 0 0.14em rgba(255, 138, 61, 0.18), 0 0 0.5em rgba(255, 138, 61, 0.06); }
+  47% { text-shadow: 0 0 0.32em rgba(255, 160, 90, 0.48), 0 0 1.1em rgba(255, 138, 61, 0.18); }
+  75% { text-shadow: 0 0 0.26em rgba(255, 138, 61, 0.36), 0 0 0.9em rgba(255, 138, 61, 0.13); }
+}
+
+/* The lobby's night sky sits behind everything else on the page. */
+.night { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.host:has(.night)::before { display: none; } /* the lobby gets the full moon instead of the faint glow */
+.host:has(.night) .host-top .event { visibility: hidden; } /* the big title already says it */
+.moon {
+  position: absolute; width: 38vw; aspect-ratio: 1; right: -4vw; top: -9vw; border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 38%, rgba(160, 110, 70, 0.22) 0 6%, transparent 7%),
+    radial-gradient(circle at 62% 30%, rgba(160, 110, 70, 0.18) 0 4%, transparent 5%),
+    radial-gradient(circle at 56% 64%, rgba(160, 110, 70, 0.2) 0 8%, transparent 9%),
+    radial-gradient(circle at 40% 40%, #ffd9a8 0%, #ffb877 45%, #e8823e 100%);
+  box-shadow: 0 0 6vw rgba(255, 150, 80, 0.35), 0 0 18vw rgba(255, 138, 61, 0.18);
+  opacity: 0.8;
+  animation: moonrise 3s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
+@keyframes moonrise { from { opacity: 0; transform: translateY(4vw); } }
+
+.bat {
+  position: absolute; top: var(--top); left: 0; width: var(--size);
+  color: #041110; opacity: 0;
+  animation: fly var(--dur) linear var(--delay) infinite;
+}
+.bat svg { display: block; width: 100%; fill: currentColor; animation: flap 0.32s ease-in-out infinite alternate; transform-origin: 50% 40%; }
+@keyframes flap { to { transform: scaleY(0.35) translateY(8%); } }
+@keyframes fly {
+  0% { opacity: 0; transform: translate(105vw, 0) rotate(-6deg); }
+  4% { opacity: 1; }
+  25% { transform: translate(75vw, -3vw) rotate(4deg); }
+  50% { transform: translate(45vw, 2vw) rotate(-5deg); }
+  75% { transform: translate(15vw, -2vw) rotate(3deg); }
+  96% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-15vw, 1vw) rotate(-4deg); }
+}
+
+.fog {
+  position: absolute; left: -50%; bottom: -6vw; width: 200%; height: 22vw;
+  background:
+    radial-gradient(40% 60% at 20% 70%, rgba(200, 230, 215, 0.10), transparent 70%),
+    radial-gradient(35% 55% at 55% 80%, rgba(200, 230, 215, 0.08), transparent 70%),
+    radial-gradient(30% 50% at 85% 65%, rgba(200, 230, 215, 0.09), transparent 70%);
+  filter: blur(18px);
+  animation: drift 38s linear infinite alternate;
+}
+.fog-b { bottom: -9vw; opacity: 0.8; animation-duration: 52s; animation-direction: alternate-reverse; }
+@keyframes drift { to { transform: translateX(25%); } }
 .lobby .lede { margin-top: 2vw; font-size: clamp(22px, 1.8vw, 40px); max-width: 28ch; color: var(--fog); }
 .lobby .join-card { width: clamp(260px, 24vw, 520px); border-radius: 36px; padding: 2vw; }
 .lobby .join-card p { font-size: 1.3rem; }

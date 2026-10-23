@@ -56,6 +56,22 @@ function bar(status, buttons) {
   </footer>`;
 }
 
+// The lobby's backdrop: a harvest moon, a few bats crossing it, and fog along the floor.
+const BAT = `<svg viewBox="0 0 100 60"><path d="M50 26c-2-5-4-8-4-8l-3 7C36 17 24 15 14 20c6 2 9 7 9 12-7-4-16-3-23 3 10 0 16 5 18 12 9-6 20-5 32 3 12-8 23-9 32-3 2-7 8-12 18-12-7-6-16-7-23-3 0-5 3-10 9-12-10-5-22-3-29 5l-3-7s-2 3-4 8z"/></svg>`;
+function nightScene() {
+  const bats = [
+    { top: 12, size: 5.5, dur: 16, delay: 0 },
+    { top: 22, size: 3.4, dur: 21, delay: 5 },
+    { top: 6, size: 2.6, dur: 27, delay: 11 },
+    { top: 28, size: 4.4, dur: 19, delay: 15 },
+  ].map((b) => `<span class="bat" style="--top:${b.top}%;--size:${b.size}vw;--dur:${b.dur}s;--delay:${b.delay}s">${BAT}</span>`).join('');
+  return `<div class="night" aria-hidden="true">
+    <div class="moon"></div>
+    ${bats}
+    <div class="fog fog-a"></div><div class="fog fog-b"></div>
+  </div>`;
+}
+
 const countLabel = (i) => `Award ${i + 1} of ${AWARDS.length}`;
 const votesAreIn = (n) => `${n} ${n === 1 ? 'vote is' : 'votes are'} in. Who will it be?`;
 const names = (list) => (list.length ? list.map(esc).join(' &amp; ') : 'No votes');
@@ -70,7 +86,7 @@ async function render() {
   let footer = '';
 
   if (status === 'lobby') {
-    body = `<main class="lobby">
+    body = `${nightScene()}<main class="lobby">
       <div>
         <h1 class="serif">The Haunted Hall of Fame</h1>
         <p class="lede">Ten awards for the superpowers on our team. Scan the code to join, then vote for a teammate on each one.</p>
