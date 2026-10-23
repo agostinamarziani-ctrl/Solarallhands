@@ -31,12 +31,12 @@ function supabaseStore() {
       setInterval(refresh, 4000);
       refresh();
     },
-    async setGame(hostKey, award_index, status) {
-      const { error } = await (await db()).rpc('set_game', { host_key: hostKey, new_index: award_index, new_status: status });
+    async setGame(award_index, status) {
+      const { error } = await (await db()).rpc('set_game', { new_index: award_index, new_status: status });
       if (error) throw error;
     },
-    async resetGame(hostKey) {
-      const { error } = await (await db()).rpc('reset_game', { host_key: hostKey });
+    async resetGame() {
+      const { error } = await (await db()).rpc('reset_game');
       if (error) throw error;
     },
     async join(name) {
@@ -79,7 +79,7 @@ function localStore() {
   return {
     async getGame() { return read().game; },
     async onGame(cb) { listeners.add(cb); cb(read().game); },
-    async setGame(_key, award_index, status) { write({ ...read(), game: { award_index, status } }); },
+    async setGame(award_index, status) { write({ ...read(), game: { award_index, status } }); },
     async resetGame() { write({ game: LOBBY, players: [], votes: [] }); },
     async join(name) {
       const s = read();

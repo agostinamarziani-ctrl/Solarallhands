@@ -1,10 +1,9 @@
 import { AWARDS } from './awards.js';
-import { store, tally, isLocal } from './store.js';
+import { store, tally } from './store.js';
 import { LOGO, esc, toast, winnersOf } from './ui.js';
 
 const app = document.getElementById('app');
-const hostKey = new URLSearchParams(location.search).get('key') || '';
-const joinUrl = location.origin + '/';
+const joinUrl = location.origin + '/play';
 
 let game = null;
 let primary = null; // the main action for the current state, also bound to → / space
@@ -21,7 +20,7 @@ function joinCard() {
   return `<div class="join-card">
     <div class="qr">${qrSvg()}</div>
     <p>Scan to vote</p>
-    <p class="url">${esc(joinUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</p>
+    <p class="url">${esc(joinUrl.replace(/^https?:\/\//, ''))}</p>
   </div>`;
 }
 
@@ -148,9 +147,9 @@ async function render() {
 
 async function go(index, status) {
   try {
-    await store.setGame(hostKey, index, status);
+    await store.setGame(index, status);
   } catch (e) {
-    toast(/host key/i.test(e.message) ? 'That host key didn’t match. Check the key in your link.' : `Couldn’t update the game: ${e.message}`);
+    toast(`Couldn’t update the game: ${e.message}`);
   }
 }
 
@@ -159,7 +158,7 @@ app.addEventListener('click', async (e) => {
   if (!action) return;
   if (action === 'reset') {
     if (!confirm('Reset the game? This deletes every vote and sends everyone back to the start.')) return;
-    try { await store.resetGame(hostKey); } catch (err) { toast(`Couldn’t reset: ${err.message}`); }
+    try { await store.resetGame(); } catch (err) { toast(`Couldn’t reset: ${err.message}`); }
     return;
   }
   primary?.();
@@ -172,13 +171,8 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-if (!isLocal && !hostKey) {
-  app.innerHTML = `<div class="notice"><h1 class="serif">Host key needed</h1>
-    <p>Open this page with your host key at the end of the link, like <code>/host?key=your-key</code>.</p></div>`;
-} else {
-  store.onGame((g) => {
-    if (game && g.award_index === game.award_index && g.status === game.status) return;
-    game = g;
-    render();
-  });
-}
+store.onGame((g) => {
+  if (game && g.award_index === game.award_index && g.status === game.status) return;
+  game = g;
+  render();
+});

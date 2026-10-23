@@ -1,33 +1,15 @@
 # The Haunted Hall of Fame
 
-A live voting game for the Superside Town Hall. The host screen shows each award,
-everyone votes on their phone, and the winner is revealed on the big screen.
+A live voting game for the Superside Town Hall.
 
-- `/` is the phone voting page (the QR code points here)
-- `/host?key=YOUR-KEY` is the host screen for the shared screen
+- **`/`** is the presenter screen. Share it in the meeting: it shows each award, the
+  QR code, the live vote count and the winner reveal.
+- **`/play`** is the phone voting page. The QR code points here.
 
-Plain HTML, CSS and JavaScript. No build step.
-
-## Set up (about 10 minutes)
-
-### 1. Supabase (stores the votes)
-1. Create a free project at [supabase.com](https://supabase.com).
-2. Open `supabase.sql`, replace both `CHANGE-ME` values with a secret host key, and
-   run it in **SQL Editor**.
-3. In **Project Settings → API**, copy the **Project URL** and the **anon public** key.
-4. Paste them into `config.js`. The anon key is meant to be public; the host key
-   stays secret inside the database.
-
-### 2. GitHub
-Push this folder to a new repository.
-
-### 3. Vercel
-1. **Add New → Project**, import the repository.
-2. Framework preset: **Other**. No build command. Deploy.
-3. Open `https://<your-app>.vercel.app/host?key=YOUR-KEY` on the presenting laptop.
+Plain HTML, CSS and JavaScript, no build step. Hosted on Vercel, votes stored in Supabase.
 
 ## Running the game
-- Lobby: people scan the QR code and pick their name.
+- Open the main link and share your screen. People scan the QR code and pick their name.
 - **Start the first award**, then **Close voting**, **Reveal the winner**, **Next award**.
   The right arrow key or space bar does the same, so a presentation clicker works too.
 - After the last award, **Show all winners** displays the full recap.
@@ -37,6 +19,9 @@ Push this folder to a new repository.
 - Teammates: `teammates.json`
 - Awards: `awards.js`
 
-## Local demo
-With `config.js` empty, the app runs in demo mode in a single browser: open `/host`
-and `/` in two tabs and they stay in sync.
+Changes pushed to GitHub redeploy on Vercel automatically.
+
+## Setup reference
+- `supabase.sql` creates the database tables (run once in Supabase's SQL Editor).
+- `config.js` holds the Supabase project URL and the anon public key. Leave them
+  empty to run a local demo where two browser tabs stay in sync.

@@ -1,5 +1,4 @@
--- Run this once in Supabase: SQL Editor -> New query -> paste -> Run.
--- BEFORE running, replace both 'CHANGE-ME' values with your own secret host key.
+-- Haunted Hall of Fame database setup. Run once in Supabase: SQL Editor -> paste -> Run.
 
 create table game (
   id int primary key default 1 check (id = 1),
@@ -34,18 +33,19 @@ create policy "Votes only while that award is open" on votes for insert with che
   exists (select 1 from game where status = 'voting' and award_index = votes.award_id)
 );
 
--- Only the host (who knows the key) can move the game forward.
-create or replace function set_game(host_key text, new_index int, new_status text)
+-- The presenter screen moves the game forward through these two functions.
+create or replace function set_game(new_index int, new_status text)
 returns void language plpgsql security definer set search_path = public as $$
 begin
-  if host_key <> 'CHANGE-ME' then raise exception 'wrong host key'; end if;
+  if new_status not in ('lobby', 'voting', 'closed', 'revealed', 'finished') then
+    raise exception 'unknown status %', new_status;
+  end if;
   update game set award_index = new_index, status = new_status, updated_at = now() where id = 1;
 end $$;
 
-create or replace function reset_game(host_key text)
+create or replace function reset_game()
 returns void language plpgsql security definer set search_path = public as $$
 begin
-  if host_key <> 'CHANGE-ME' then raise exception 'wrong host key'; end if;
   delete from votes where true;
   delete from players where true;
   update game set award_index = -1, status = 'lobby', updated_at = now() where id = 1;
