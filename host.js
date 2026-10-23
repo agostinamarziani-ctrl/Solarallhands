@@ -6,8 +6,23 @@ const app = document.getElementById('app');
 const joinUrl = location.origin + '/play';
 
 let game = null;
-let primary = null; // the main action for the current state, also bound to → / space
+let primary = null; // the main action for the current state, also bound to → / space / clicker
 let pollTimer = null;
+let renderSeq = 0;
+let liveVotes = { award: null, count: 0 }; // last count seen while voting was open
+
+let saving = Promise.resolve(); // the latest step being saved to the database
+
+// Votes for one award, fetched once the database has confirmed voting is closed
+// (so no late vote is missed) and kept so the reveal is instant.
+let finalVotes = { award: null, promise: null };
+function loadFinalVotes(i) {
+  if (finalVotes.award !== i) {
+    finalVotes = { award: i, promise: saving.catch(() => {}).then(() => store.votes(i)) };
+  }
+  return finalVotes.promise;
+}
+let allVotes = null; // prefetched for the finale during the last reveal
 
 function qrSvg() {
   const qr = qrcode(0, 'M');
@@ -42,8 +57,11 @@ function bar(status, buttons) {
 }
 
 const countLabel = (i) => `Award ${i + 1} of ${AWARDS.length}`;
+const votesAreIn = (n) => `${n} ${n === 1 ? 'vote is' : 'votes are'} in. Who will it be?`;
+const names = (list) => (list.length ? list.map(esc).join(' &amp; ') : 'No votes');
 
 async function render() {
+  const seq = ++renderSeq;
   clearInterval(pollTimer);
   const { award_index: i, status } = game;
   const award = AWARDS[i];
@@ -67,6 +85,7 @@ async function render() {
   }
 
   if (status === 'voting') {
+    finalVotes = { award: null, promise: null }; // reopened voting means new votes can arrive
     body = `<main class="host-main">
       <section>
         <p class="award-count">${countLabel(i)}</p>
@@ -80,18 +99,19 @@ async function render() {
     footer = bar(
       `<span class="live-dot"></span><span>Voting is open</span>
        <span class="meter"><i data-meter style="width:0"></i></span>
-       <span><b data-votes>0</b> of <span data-joined>0</span> voted</span>`,
+       <span><b data-votes>${liveVotes.award === i ? liveVotes.count : 0}</b> of <span data-joined>0</span> voted</span>`,
       `<button class="btn" data-action="close">Close voting</button>`
     );
     primary = () => go(i, 'closed');
   }
 
   if (status === 'closed') {
-    const n = (await store.votes(i)).length;
+    // Show the last count we saw straight away, then correct it once the final tally arrives.
+    const seen = liveVotes.award === i ? liveVotes.count : null;
     body = `<main class="suspense">
       <p class="award-count">${countLabel(i)}</p>
       <h2 class="serif">${esc(award.name)} Award</h2>
-      <p>${n} ${n === 1 ? 'vote is' : 'votes are'} in. Who will it be?</p>
+      <p data-final>${seen == null ? 'Counting the votes…' : votesAreIn(seen)}</p>
     </main>`;
     footer = bar(
       `<span>Voting closed</span>`,
@@ -99,19 +119,23 @@ async function render() {
        <button class="btn" data-action="reveal">Reveal the winner</button>`
     );
     primary = () => go(i, 'revealed');
+    loadFinalVotes(i).then((v) => {
+      const el = seq === renderSeq && app.querySelector('[data-final]');
+      if (el) el.textContent = votesAreIn(v.length);
+    }).catch(() => {});
   }
 
   if (status === 'revealed') {
-    const results = tally(await store.votes(i));
+    const results = tally(await loadFinalVotes(i));
     const winners = winnersOf(results);
     const last = i === AWARDS.length - 1;
-    const name = winners.length ? winners.map(esc).join(' &amp; ') : 'No votes yet';
+    if (last) allVotes = store.votes();
     const podium = results.slice(0, 3).map((r, n) =>
       `<div class="${n === 0 ? 'first' : ''}"><b>${esc(r.name)}</b><span>${r.count} ${r.count === 1 ? 'vote' : 'votes'}</span></div>`
     ).join('');
     body = `<main class="reveal">
       <p class="for"><span class="serif">${esc(award.name)}</span> Award goes to</p>
-      <h1 class="winner serif">${winners.length > 1 ? '<span class="tie">It’s a tie</span>' : ''}${name}</h1>
+      <h1 class="winner serif">${winners.length > 1 ? '<span class="tie">It’s a tie</span>' : ''}${names(winners)}</h1>
       <div class="podium">${podium}</div>
     </main>`;
     footer = bar(
@@ -122,24 +146,33 @@ async function render() {
   }
 
   if (status === 'finished') {
-    const all = await store.votes();
-    const rows = AWARDS.map((a, n) => {
+    const all = await (allVotes || store.votes());
+    const plaques = AWARDS.map((a, n) => {
       const w = winnersOf(tally(all.filter((v) => v.award_id === n)));
-      return `<li><span>${esc(a.name)}</span><b>${w.length ? w.map(esc).join(' &amp; ') : '—'}</b></li>`;
+      return `<li style="--i:${n}">
+        <span class="plaque-award">${esc(a.name)} Award</span>
+        <b class="plaque-name serif">${names(w)}</b>
+      </li>`;
     }).join('');
-    body = `<main class="recap">
-      <h2 class="serif">Your Haunted Hall of Fame</h2>
-      <ol>${rows}</ol>
+    body = `<main class="finale">
+      <header class="finale-head">
+        <h2 class="serif">The spirits have spoken.</h2>
+        <p>Ten superpowers. Ten legends. Their names now haunt these halls forever.</p>
+      </header>
+      <ol class="plaques">${plaques}</ol>
     </main>`;
-    footer = bar(`<span>Thanks for voting</span>`, '');
+    footer = bar(`<span>Thanks for voting, and happy Halloween</span>`, '');
     primary = null;
   }
 
+  if (seq !== renderSeq) return; // a newer state arrived while this one was loading
   app.innerHTML = header + body + footer;
 
   if (status === 'lobby' || status === 'voting') {
     const refresh = async () => {
       const [joined, votes] = await Promise.all([store.countPlayers(), status === 'voting' ? store.votes(i) : []]);
+      if (seq !== renderSeq) return;
+      if (status === 'voting') liveVotes = { award: i, count: votes.length };
       app.querySelectorAll('[data-joined]').forEach((el) => (el.textContent = joined));
       const label = app.querySelector('[data-joined-label]');
       if (label) label.innerHTML = joined ? `<b>${joined}</b> ${joined === 1 ? 'person has' : 'people have'} joined` : 'Waiting for people to join';
@@ -148,21 +181,28 @@ async function render() {
       const m = app.querySelector('[data-meter]');
       if (m) m.style.width = `${joined ? Math.min(100, (votes.length / joined) * 100) : 0}%`;
     };
-    refresh();
-    pollTimer = setInterval(refresh, 2000);
+    refresh().catch(() => {});
+    pollTimer = setInterval(() => refresh().catch(() => {}), 2000);
   }
 }
 
 let busy = false; // ignores double clicks / clicker double-presses while a step is saving
+let ignoreRemoteUntil = 0; // stops an in-flight poll from briefly undoing a click
 
+// Changes the big screen immediately, then saves. If saving fails, goes back and says so.
 async function go(index, status) {
   if (busy) return;
   busy = true;
+  const previous = game;
+  ignoreRemoteUntil = Date.now() + 3000;
+  saving = store.setGame(index, status);
+  apply({ award_index: index, status });
   try {
-    await store.setGame(index, status);
-    apply({ award_index: index, status }); // don't wait for the round trip to update the big screen
-  } catch (e) {
-    toast('Couldn’t reach the server. Check the Wi-Fi and click again.');
+    await saving;
+  } catch {
+    ignoreRemoteUntil = 0;
+    apply(previous);
+    toast('Couldn’t reach the server, so nothing changed. Check the Wi-Fi and click again.');
   } finally {
     busy = false;
   }
@@ -175,7 +215,9 @@ app.addEventListener('click', async (e) => {
     if (!confirm('Reset the game? This deletes every vote and sends everyone back to the start.')) return;
     try {
       await store.resetGame();
-      game = null;
+      liveVotes = { award: null, count: 0 };
+      finalVotes = { award: null, promise: null };
+      allVotes = null;
       apply({ award_index: -1, status: 'lobby' });
     } catch {
       toast('Couldn’t reset. Check the Wi-Fi and try again.');
@@ -199,4 +241,7 @@ function apply(g) {
   render();
 }
 
-store.onGame(apply);
+store.onGame((g) => {
+  if (busy || Date.now() < ignoreRemoteUntil) return;
+  apply(g);
+});

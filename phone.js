@@ -178,7 +178,7 @@ async function render() {
   }
 
   if (status === 'finished') {
-    return stateView('👻', 'That’s a wrap.', 'Thanks for voting in the Haunted Hall of Fame. See you at the next Town Hall.');
+    return stateView('👻', 'The spirits have spoken.', 'Look up at the big screen to see whose names now haunt the Hall of Fame. Thanks for voting!');
   }
 }
 
