@@ -152,25 +152,66 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .podium .first b { color: var(--ember); }
 @keyframes fade { from { opacity: 0; } }
 
-/* Finale: every winner, carved into the hall one by one */
-.finale { align-self: center; }
-.finale-head { margin-bottom: 3vw; }
+/* Finale: a hall of ten gothic arches that rise from the dark and light up one by one */
+.finale { align-self: center; text-align: center; }
+.finale-head { margin-bottom: 2.6vw; }
 .finale-head h2 {
-  font-size: clamp(56px, 6.4vw, 150px); line-height: 0.95;
+  font-size: clamp(56px, 6vw, 150px); line-height: 0.95;
   text-shadow: 0 0 0.4em rgba(255, 138, 61, 0.35);
   animation: rise 1600ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
 }
-.finale-head p { margin-top: 1vw; color: var(--fog); font-size: clamp(20px, 1.6vw, 36px); max-width: 40ch; animation: fade 800ms 700ms both; }
-.plaques { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(5, auto); gap: 0 5vw; }
-.plaques li {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 1.5rem;
-  padding: 1vw 0; border-bottom: 1px solid var(--mist);
-  animation: carve 700ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
-  animation-delay: calc(1200ms + var(--i) * 160ms);
+.finale-head p { margin: 1vw auto 0; color: var(--fog); font-size: clamp(18px, 1.5vw, 34px); max-width: 60ch; animation: fade 800ms 700ms both; }
+
+.hall {
+  list-style: none; padding: 0;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2.2vw 1.6vw;
 }
-.plaque-award { color: var(--mint); font-size: 1rem; }
-.plaque-name { font-size: clamp(26px, 2.3vw, 54px); line-height: 1.1; text-align: right; text-shadow: 0 0 0.45em rgba(255, 138, 61, 0.45); }
-@keyframes carve { from { opacity: 0; transform: translateY(0.6em); filter: blur(6px); } }
+.arch {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  min-height: clamp(210px, 15.5vw, 360px);
+  padding: 4.2vw 1vw 1.4vw;
+  border-radius: 999px 999px 14px 14px;
+  background:
+    radial-gradient(70% 55% at 50% 28%, rgba(255, 138, 61, 0.22), transparent 70%),
+    linear-gradient(180deg, #13342f 0%, var(--forest) 55%, #071816 100%);
+  box-shadow: inset 0 0 0 1px rgba(141, 253, 186, 0.16), 0 24px 60px rgba(0, 0, 0, 0.45);
+  animation: emerge 900ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
+  animation-delay: calc(1100ms + var(--i) * 220ms);
+}
+/* An inner arch line, like a carved window frame. */
+.arch::before {
+  content: ''; position: absolute; inset: 0.7vw; pointer-events: none;
+  border-radius: 999px 999px 9px 9px;
+  border: 1px solid rgba(247, 249, 242, 0.08);
+}
+/* The ember light that ignites once the arch has risen. */
+.arch::after {
+  content: ''; position: absolute; left: 50%; top: 18%; width: 70%; aspect-ratio: 1; pointer-events: none;
+  transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 150, 80, 0.38), transparent 65%);
+  filter: blur(12px);
+  animation: ignite 1400ms ease-out both;
+  animation-delay: calc(1700ms + var(--i) * 220ms);
+}
+.arch-icon {
+  position: absolute; top: 2.6vw; left: 50%; transform: translateX(-50%); z-index: 1;
+  font-size: clamp(30px, 2.8vw, 64px); line-height: 1;
+  filter: drop-shadow(0 0 0.35em rgba(255, 138, 61, 0.6));
+}
+.arch-name {
+  position: relative; z-index: 1;
+  font-size: clamp(24px, 2.05vw, 50px); line-height: 1.02;
+  color: var(--bone); text-wrap: balance;
+  text-shadow: 0 0 0.45em rgba(255, 138, 61, 0.55);
+}
+.arch-award {
+  position: relative; z-index: 1; margin-top: 0.9vw; padding-top: 0.8vw;
+  border-top: 1px solid rgba(141, 253, 186, 0.22);
+  color: var(--mint); font-size: clamp(13px, 0.95vw, 20px); line-height: 1.3; text-wrap: balance;
+}
+@keyframes emerge { from { opacity: 0; transform: translateY(2.5vw) scale(0.97); filter: blur(10px) brightness(0.4); } }
+@keyframes ignite { from { opacity: 0; transform: translateX(-50%) scale(0.4); } 60% { opacity: 1; } }
 
 .notice { max-width: 34rem; margin: auto; text-align: center; }
 .notice h1 { font-size: 3rem; margin-bottom: 0.4em; }
@@ -257,7 +298,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 @media (max-width: 900px) {
   .host-main, .lobby { grid-template-columns: 1fr; }
-  .plaques { grid-template-columns: 1fr; grid-auto-flow: row; grid-template-rows: none; }
+  .hall { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .host-bar { flex-wrap: wrap; }
 }
 

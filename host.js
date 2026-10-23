@@ -147,11 +147,12 @@ async function render() {
 
   if (status === 'finished') {
     const all = await (allVotes || store.votes());
-    const plaques = AWARDS.map((a, n) => {
+    const arches = AWARDS.map((a, n) => {
       const w = winnersOf(tally(all.filter((v) => v.award_id === n)));
-      return `<li style="--i:${n}">
-        <span class="plaque-award">${esc(a.name)} Award</span>
-        <b class="plaque-name serif">${names(w)}</b>
+      return `<li class="arch" style="--i:${n}">
+        <span class="arch-icon" aria-hidden="true">${a.icon}</span>
+        <b class="arch-name serif">${names(w)}</b>
+        <span class="arch-award">${esc(a.name)} Award</span>
       </li>`;
     }).join('');
     body = `<main class="finale">
@@ -159,7 +160,7 @@ async function render() {
         <h2 class="serif">The spirits have spoken.</h2>
         <p>Ten superpowers. Ten legends. Their names now haunt these halls forever.</p>
       </header>
-      <ol class="plaques">${plaques}</ol>
+      <ol class="hall">${arches}</ol>
     </main>`;
     footer = bar(`<span>Thanks for voting, and happy Halloween</span>`, '');
     primary = null;
