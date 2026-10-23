@@ -9,11 +9,18 @@ A live voting game for the Superside Town Hall.
 Plain HTML, CSS and JavaScript, no build step. Hosted on Vercel, votes stored in Supabase.
 
 ## Running the game
-- Open the main link and share your screen. People scan the QR code and pick their name.
+- Open the main link and share your screen. People scan the QR code and type their
+  first and last name. Names are matched to `teammates.json` (accents, capitals and
+  common nicknames don't matter), so nobody can vote for themselves.
 - **Start the first award**, then **Close voting**, **Reveal the winner**, **Next award**.
-  The right arrow key or space bar does the same, so a presentation clicker works too.
-- After the last award, **Show all winners** displays the full recap.
-- **Reset game** (on the lobby and recap screens) deletes all votes. Use it after a rehearsal.
+  The right arrow key, space bar or a presentation clicker does the same. Double presses
+  are ignored, so you can't skip an award by accident.
+- Closed voting too early? **Reopen voting** on the "Voting closed" screen.
+- **Reset game** is on every screen. It asks first, then deletes all votes and sends
+  everyone back to the lobby (phones rejoin by themselves).
+- Refreshing the presenter screen is safe: it picks up exactly where you were.
+- Votes belong to the phone, not the typed name: one vote per phone per award.
+- Add `?demo` to either link to rehearse in one browser without touching the real votes.
 
 ## Editing content
 - Teammates: `teammates.json`

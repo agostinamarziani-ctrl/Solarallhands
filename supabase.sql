@@ -8,14 +8,17 @@ create table game (
 );
 insert into game default values;
 
+-- One row per phone. `name` is the teammate-list spelling when we recognised the person.
 create table players (
-  name text primary key,
+  id text primary key,
+  name text not null check (char_length(name) between 2 and 70),
   joined_at timestamptz not null default now()
 );
 
 create table votes (
   award_id int not null,
-  voter text not null,
+  voter text not null, -- the phone's ID, so a typed name can't vote twice
+  nominee text not null,
   nominee text not null,
   created_at timestamptz not null default now(),
   primary key (award_id, voter) -- one vote per person per award
@@ -28,6 +31,7 @@ alter table votes enable row level security;
 create policy "Anyone can read the game" on game for select using (true);
 create policy "Anyone can read players" on players for select using (true);
 create policy "Anyone can join" on players for insert with check (true);
+create policy "Anyone can change their name" on players for update using (true) with check (true);
 create policy "Anyone can read votes" on votes for select using (true);
 create policy "Votes only while that award is open" on votes for insert with check (
   exists (select 1 from game where status = 'voting' and award_index = votes.award_id)

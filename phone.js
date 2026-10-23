@@ -1,5 +1,5 @@
 import { AWARDS } from './awards.js';
-import { store, tally } from './store.js';
+import { store, tally, deviceId } from './store.js';
 import { LOGO, esc, fold, initials, toast, loadTeammates, winnersOf } from './ui.js';
 
 const app = document.getElementById('app');
@@ -11,7 +11,7 @@ let game = null;
 let selected = null;
 
 async function header() {
-  const who = me ? `<button class="me" data-action="change">Voting as <u>${esc(me)}</u></button>` : '';
+  const who = me ? `<button class="me" data-action="change">Not ${esc(me.split(' ')[0])}? <u>Change name</u></button>` : '';
   return `<header class="phone-top"><span class="logo">${await LOGO}</span>${who}</header>`;
 }
 
@@ -61,23 +61,75 @@ function stateView(glyph, title, text, extra = '') {
   </section>`);
 }
 
+const cleanName = (s) => s.replace(/\s+/g, ' ').trim().slice(0, 30);
+const squash = (s) => fold(s).replace(/[^a-z]/g, '');
+
+// Finds the teammate a typed first + last name belongs to, ignoring accents, case and spacing.
+// "Elsa" + "Debruyn" → "Elsa De Bruyn", "Lucia" + "Damian" → "Lucia Damian Penin",
+// "Nobu" + "Ngwane" → "Nobuhle Ngwane" (nickname, unique last name).
+function matchTeammate(first, last) {
+  const f = squash(first);
+  const l = squash(last);
+  if (l.length < 2) return teammates.find((t) => squash(t) === f + l) || null;
+  const split = (t) => {
+    const [tFirst, ...rest] = t.split(' ');
+    return [squash(tFirst), squash(rest.join(''))];
+  };
+  const sameLast = teammates.filter((t) => {
+    const tLast = split(t)[1];
+    return tLast.startsWith(l) || tLast.endsWith(l);
+  });
+  return (
+    teammates.find((t) => squash(t) === f + l) ||
+    sameLast.find((t) => split(t)[0] === f) ||
+    (sameLast.length === 1 && f.length >= 2 && split(sameLast[0])[0].startsWith(f.slice(0, 2)) ? sameLast[0] : null)
+  );
+}
+
 async function renderJoin() {
   app.innerHTML = await header();
-  app.insertAdjacentHTML('beforeend', `<section>
+  app.insertAdjacentHTML('beforeend', `<form class="join" novalidate>
     <p class="kicker">The Haunted Hall of Fame</p>
-    <h1 class="serif">Who are you?</h1>
-    <p class="sub">Find your name so we can count your vote. You won’t be able to vote for yourself.</p>
-  </section>`);
-  pickList({
-    names: teammates,
-    placeholder: 'Search your name',
-    cta: (n) => (n ? `Continue as ${n}` : 'Select your name'),
-    onSubmit: async (name) => {
-      await store.join(name);
+    <h1 class="serif">What’s your name?</h1>
+    <p class="sub">Join with your first and last name. You’ll vote for a teammate on each award.</p>
+    <label class="field">
+      <span>First name</span>
+      <input name="first" type="text" required maxlength="30" autocomplete="given-name" autocapitalize="words" enterkeyhint="next">
+    </label>
+    <label class="field">
+      <span>Last name</span>
+      <input name="last" type="text" required maxlength="30" autocomplete="family-name" autocapitalize="words" enterkeyhint="go">
+    </label>
+    <div class="dock"><button class="btn" type="submit" disabled>Join the game</button></div>
+  </form>`);
+
+  const form = app.querySelector('.join');
+  const [firstInput, lastInput] = form.querySelectorAll('input');
+  const submit = form.querySelector('button');
+  const valid = () => squash(firstInput.value).length >= 1 && squash(lastInput.value).length >= 1;
+  form.addEventListener('input', () => (submit.disabled = !valid()));
+  firstInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); lastInput.focus(); }
+  });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!valid()) return (squash(firstInput.value) ? lastInput : firstInput).focus();
+    const first = cleanName(firstInput.value);
+    const last = cleanName(lastInput.value);
+    // Use the list's spelling when we recognise the person, otherwise keep what they typed.
+    const name = matchTeammate(first, last) || `${first} ${last}`;
+    submit.disabled = true;
+    submit.textContent = 'Joining…';
+    try {
+      await store.join(deviceId(), name);
       me = name;
       localStorage.setItem(ME_KEY, name);
       render();
-    },
+    } catch {
+      toast('That didn’t go through. Check your connection and try again.');
+      submit.disabled = false;
+      submit.textContent = 'Join the game';
+    }
   });
 }
 
@@ -93,7 +145,7 @@ async function render() {
   }
 
   if (status === 'voting') {
-    const mine = await store.myVote(i, me);
+    const mine = await store.myVote(i, deviceId());
     if (mine) {
       return stateView('🎃', 'Vote locked in.', `You voted for <b>${esc(mine)}</b>. The next award appears here when the host moves on.`);
     }
@@ -103,12 +155,13 @@ async function render() {
       <p class="sub">${esc(award.tagline)}</p>
     </section>`);
     return pickList({
-      names: teammates.filter((n) => n !== me),
+      names: teammates.filter((n) => n !== me), // `me` uses the list's spelling when we matched you on join
       placeholder: 'Search a teammate',
       cta: (n) => (n ? `Vote for ${n}` : 'Pick a teammate'),
       onSubmit: async (nominee) => {
-        const result = await store.vote(i, me, nominee);
+        const result = await store.vote(i, deviceId(), nominee);
         if (result === 'duplicate') toast('You already voted for this award.');
+        if (result === 'closed') toast('Voting for this award just closed.');
         render();
       },
     });
@@ -138,10 +191,12 @@ app.addEventListener('click', (e) => {
 });
 
 teammates = await loadTeammates();
-if (me) store.join(me).catch(() => {}); // re-register a remembered name, e.g. after a reset
+if (me) store.join(deviceId(), me).catch(() => {}); // re-register a remembered name, e.g. after a reset
 store.onGame((g) => {
   const changed = !game || g.award_index !== game.award_index || g.status !== game.status;
   game = g;
+  // A reset clears the player list, so rejoin when the game goes back to the lobby.
+  if (changed && me && g.status === 'lobby') store.join(deviceId(), me).catch(() => {});
   if (changed && me) render();
 });
 if (!me) render();

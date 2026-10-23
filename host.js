@@ -34,7 +34,10 @@ async function top() {
 function bar(status, buttons) {
   return `<footer class="host-bar">
     <div class="status">${status}</div>
-    <div class="controls">${buttons}</div>
+    <div class="controls">
+      <button class="btn ghost reset" data-action="reset">Reset game</button>
+      ${buttons}
+    </div>
   </footer>`;
 }
 
@@ -58,8 +61,7 @@ async function render() {
     </main>`;
     footer = bar(
       `<span class="live-dot"></span><span><b data-joined>0</b> people have joined</span>`,
-      `<button class="btn ghost" data-action="reset">Reset game</button>
-       <button class="btn" data-action="start">Start the first award</button>`
+      `<button class="btn" data-action="start">Start the first award</button>`
     );
     primary = () => go(0, 'voting');
   }
@@ -91,7 +93,11 @@ async function render() {
       <h2 class="serif">${esc(award.name)} Award</h2>
       <p>${n} ${n === 1 ? 'vote is' : 'votes are'} in. Who will it be?</p>
     </main>`;
-    footer = bar(`<span>Voting closed</span>`, `<button class="btn" data-action="reveal">Reveal the winner</button>`);
+    footer = bar(
+      `<span>Voting closed</span>`,
+      `<button class="btn ghost" data-action="reopen">Reopen voting</button>
+       <button class="btn" data-action="reveal">Reveal the winner</button>`
+    );
     primary = () => go(i, 'revealed');
   }
 
@@ -125,7 +131,7 @@ async function render() {
       <h2 class="serif">Your Haunted Hall of Fame</h2>
       <ol>${rows}</ol>
     </main>`;
-    footer = bar(`<span>Thanks for voting</span>`, `<button class="btn ghost" data-action="reset">Reset game</button>`);
+    footer = bar(`<span>Thanks for voting</span>`, '');
     primary = null;
   }
 
@@ -145,12 +151,18 @@ async function render() {
   }
 }
 
+let busy = false; // ignores double clicks / clicker double-presses while a step is saving
+
 async function go(index, status) {
+  if (busy) return;
+  busy = true;
   try {
     await store.setGame(index, status);
     apply({ award_index: index, status }); // don't wait for the round trip to update the big screen
   } catch (e) {
-    toast(`Couldn’t update the game: ${e.message}`);
+    toast('Couldn’t reach the server. Check the Wi-Fi and click again.');
+  } finally {
+    busy = false;
   }
 }
 
@@ -159,14 +171,21 @@ app.addEventListener('click', async (e) => {
   if (!action) return;
   if (action === 'reset') {
     if (!confirm('Reset the game? This deletes every vote and sends everyone back to the start.')) return;
-    try { await store.resetGame(); game = null; apply({ award_index: -1, status: 'lobby' }); } catch (err) { toast(`Couldn’t reset: ${err.message}`); }
+    try {
+      await store.resetGame();
+      game = null;
+      apply({ award_index: -1, status: 'lobby' });
+    } catch {
+      toast('Couldn’t reset. Check the Wi-Fi and try again.');
+    }
     return;
   }
+  if (action === 'reopen') return go(game.award_index, 'voting');
   primary?.();
 });
 
 document.addEventListener('keydown', (e) => {
-  if ((e.key === 'ArrowRight' || e.key === ' ') && primary && !e.target.closest('button')) {
+  if ((e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') && primary && !e.target.closest?.('button')) {
     e.preventDefault();
     primary();
   }

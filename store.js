@@ -4,9 +4,20 @@
 // Game shape: { award_index: -1..9, status: 'lobby' | 'voting' | 'closed' | 'revealed' | 'finished' }
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
-export const isLocal = !(SUPABASE_URL && SUPABASE_ANON_KEY);
+// Add ?demo to the URL to try the game in one browser without touching the real votes.
+export const isLocal = !(SUPABASE_URL && SUPABASE_ANON_KEY) || new URLSearchParams(location.search).has('demo');
 
 const LOBBY = { award_index: -1, status: 'lobby' };
+
+// A random ID per phone, so votes belong to a device rather than a typed name.
+export function deviceId() {
+  let id = localStorage.getItem('hhof-device');
+  if (!id) {
+    id = crypto.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem('hhof-device', id);
+  }
+  return id;
+}
 
 function supabaseStore() {
   let client;
@@ -39,8 +50,9 @@ function supabaseStore() {
       const { error } = await (await db()).rpc('reset_game');
       if (error) throw error;
     },
-    async join(name) {
-      await (await db()).from('players').upsert({ name }, { onConflict: 'name', ignoreDuplicates: true });
+    async join(id, name) {
+      const { error } = await (await db()).from('players').upsert({ id, name }, { onConflict: 'id' });
+      if (error) throw error;
     },
     async countPlayers() {
       const { count } = await (await db()).from('players').select('*', { count: 'exact', head: true });
@@ -48,7 +60,8 @@ function supabaseStore() {
     },
     async vote(awardId, voter, nominee) {
       const { error } = await (await db()).from('votes').insert({ award_id: awardId, voter, nominee });
-      if (error && error.code === '23505') return 'duplicate';
+      if (error?.code === '23505') return 'duplicate';
+      if (error?.code === '42501') return 'closed'; // blocked by the "only while open" rule
       if (error) throw error;
       return 'ok';
     },
@@ -81,14 +94,15 @@ function localStore() {
     async onGame(cb) { listeners.add(cb); cb(read().game); },
     async setGame(award_index, status) { write({ ...read(), game: { award_index, status } }); },
     async resetGame() { write({ game: LOBBY, players: [], votes: [] }); },
-    async join(name) {
+    async join(id, name) {
       const s = read();
-      if (!s.players.includes(name)) write({ ...s, players: [...s.players, name] });
+      write({ ...s, players: [...s.players.filter((p) => p.id !== id), { id, name }] });
     },
     async countPlayers() { return read().players.length; },
     async vote(awardId, voter, nominee) {
       const s = read();
       if (s.votes.some((v) => v.award_id === awardId && v.voter === voter)) return 'duplicate';
+      if (s.game.status !== 'voting' || s.game.award_index !== awardId) return 'closed';
       write({ ...s, votes: [...s.votes, { award_id: awardId, voter, nominee }] });
       return 'ok';
     },
