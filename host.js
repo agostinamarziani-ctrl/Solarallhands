@@ -60,7 +60,7 @@ async function render() {
       ${joinCard()}
     </main>`;
     footer = bar(
-      `<span class="live-dot"></span><span><b data-joined>0</b> people have joined</span>`,
+      `<span class="live-dot"></span><span data-joined-label>Waiting for people to join</span>`,
       `<button class="btn" data-action="start">Start the first award</button>`
     );
     primary = () => go(0, 'voting');
@@ -80,7 +80,7 @@ async function render() {
     footer = bar(
       `<span class="live-dot"></span><span>Voting is open</span>
        <span class="meter"><i data-meter style="width:0"></i></span>
-       <span><b data-votes>0</b> of <span data-joined>0</span> people voted</span>`,
+       <span><b data-votes>0</b> of <span data-joined>0</span> voted</span>`,
       `<button class="btn" data-action="close">Close voting</button>`
     );
     primary = () => go(i, 'closed');
@@ -141,6 +141,8 @@ async function render() {
     const refresh = async () => {
       const [joined, votes] = await Promise.all([store.countPlayers(), status === 'voting' ? store.votes(i) : []]);
       app.querySelectorAll('[data-joined]').forEach((el) => (el.textContent = joined));
+      const label = app.querySelector('[data-joined-label]');
+      if (label) label.innerHTML = joined ? `<b>${joined}</b> ${joined === 1 ? 'person has' : 'people have'} joined` : 'Waiting for people to join';
       const v = app.querySelector('[data-votes]');
       if (v) v.textContent = votes.length;
       const m = app.querySelector('[data-meter]');
